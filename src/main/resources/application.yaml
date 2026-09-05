@@ -1,3 +1,5 @@
 spring:
   application:
     name: academy-app
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/academy}
