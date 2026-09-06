@@ -20,7 +20,7 @@ Maven wrapper (`mvnw.cmd` on Windows PowerShell, `./mvnw` under bash):
 
 There is no linter or formatter configured.
 
-Runtime prerequisite: MongoDB on `localhost:27017`, database `academy`. `application.yaml` currently only sets the application name — Mongo connection settings still need to be added, using `${ENV_VAR:default}` placeholders (never hardcoded URLs or secrets).
+Runtime prerequisite: MongoDB on `localhost:27017`, database `academy`.
 
 ## Domain model
 

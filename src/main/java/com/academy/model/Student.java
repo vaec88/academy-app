@@ -1,15 +1,16 @@
 package com.academy.model;
 
-import java.time.LocalDateTime;
-
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+
+import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
@@ -22,27 +23,29 @@ public class Student {
     @EqualsAndHashCode.Include
     private String id;
 
-    @Field("first_name")
+    @Field
     private String firstName;
 
-    @Field("last_name")
+    @Field
     private String lastName;
 
-    @Field("dni")
+    @Field
     private String dni;
 
-    @Field("age")
+    @Field
     private Integer age;
 
-    @Field("email")
+    @Field
     private String email;
 
-    @Field("status")
+    @Field
     private Boolean status;
 
-    @Field("created_at")
+    @Field
+    @CreatedDate
     private LocalDateTime createdAt;
 
-    @Field("modified_at")
+    @Field
+    @LastModifiedDate
     private LocalDateTime modifiedAt;
 }

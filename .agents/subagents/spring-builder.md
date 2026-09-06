@@ -43,6 +43,9 @@ util: The class name only
 ## Model
 - The class name must be singular
 - The collection name must be plural
+- The database fields naming convention must be camel case too, database: `firstName` instead of `first_name` | model: `firstName`
+- The audit fields such as creation date or modified date, use the `@CreatedDate` and `@LastModifiedDate` annotations,
+  additionally, if not exist, create the `MongoConfig` class with the `@EnableReactiveMongoAuditing` annotation
 - Class annotations:
 ```java
 @Data
