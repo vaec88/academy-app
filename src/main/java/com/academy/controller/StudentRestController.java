@@ -1,10 +1,17 @@
 package com.academy.controller;
 
+import com.academy.dto.StudentDto;
+import com.academy.model.Student;
+import com.academy.service.IStudentService;
+import com.academy.validation.groups.OnCreate;
+import com.academy.validation.groups.OnUpdate;
+import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,13 +20,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.academy.dto.StudentDto;
-import com.academy.model.Student;
-import com.academy.service.IStudentService;
-
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -55,7 +55,7 @@ public class StudentRestController {
     }
 
     @PostMapping
-    public Mono<ResponseEntity<Void>> save(@Valid @RequestBody StudentDto studentDto, final ServerHttpRequest request) {
+    public Mono<ResponseEntity<Void>> save(@Validated(OnCreate.class) @RequestBody StudentDto studentDto, final ServerHttpRequest request) {
         Student student = toDocument(studentDto);
         return service.save(student)
                 .map(savedStudent ->
@@ -69,7 +69,7 @@ public class StudentRestController {
     }
 
     @PutMapping("/{id}")
-    public Mono<ResponseEntity<StudentDto>> update(@PathVariable String id, @Valid @RequestBody StudentDto studentDto) {
+    public Mono<ResponseEntity<StudentDto>> update(@PathVariable String id, @Validated(OnUpdate.class) @RequestBody StudentDto studentDto) {
         Student student = toDocument(studentDto);
         return service.update(id, student)
                 .map(updatedStudent ->
