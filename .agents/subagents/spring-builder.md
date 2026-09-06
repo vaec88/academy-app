@@ -92,7 +92,6 @@ public interface ICrudService<T, K> {
 }
 ```
 - A `ICrudService` implementation
-- The `update(id, document)` method checks existence with `findById`, then assigns the id to the incoming document through Java reflection (`setId`) — so every model needs a `setId(String)` (Lombok `@Data` supplies it).
 - The `delete(id)` method checks existence with `findById`
 ```java
 public abstract class CrudServiceImpl<T, K> implements ICrudService<T, K> {
@@ -115,20 +114,6 @@ public abstract class CrudServiceImpl<T, K> implements ICrudService<T, K> {
     }
 
     @Override
-    public Mono<T> update(K id, T document) {
-        return getRepository().findById(id)
-                .flatMap(_ -> {
-                    try {
-                        Method method = document.getClass().getMethod("setId", id.getClass());
-                        method.invoke(document, id);
-                    } catch (Exception e) {
-                        return Mono.error(e);
-                    }
-                    return getRepository().save(document);
-                });
-    }
-
-    @Override
     public Mono<Boolean> delete(K id) {
         return getRepository().findById(id)
                 .flatMap(_ -> getRepository().deleteById(id).thenReturn(true));
@@ -142,16 +127,32 @@ public interface IUserService extends ICrudService<User, String> {
 ```
 - The service implementation of the entity model, extends of `CrudServiceImpl`
 - The only required member is `protected IGenericRepository<User, String> getRepository()` returning the injected repository.
+- The `update(id, document)` method checks existence with `findById`
+- Validate and update only fields that are not null, except `id` field and audit fields as `createdAt` and `updatedAt`
 ```java
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl extends CrudServiceImpl<User, String> implements IUserService {
     
-	private final IUserRepository userRepository;
+    private final IUserRepository userRepository;
 
     @Override
     protected IGenericRepository<User, String> getRepository() {
         return userRepository;
+    }
+
+    @Override
+    public Mono<User> update(String id, User document) {
+        return userRepository.findById(id)
+                .flatMap(userFound -> {
+                    if (document.getEmail() != null) {
+                        userFound.setEmail(document.getEmail());
+                    }
+                    if (document.getStatus() != null) {
+                        userFound.setStatus(document.getStatus());
+                    }
+                    return userRepository.save(userFound);
+                });
     }
 }
 ```
@@ -160,7 +161,7 @@ public class UserServiceImpl extends CrudServiceImpl<User, String> implements IU
 - The entity model have a Rest Controller
 - The input and output payloads are Dto classes instead of Entities
 - Return a `Mono` or `Flux` `ResponseEntity`
-- Validate the request body with `@Valid` annotation
+- Validate the request body with `@Validated(OnCreate.class)` or `@Validated(OnUpdate.class)` annotation
 - Build the 201 location from `ServerHttpRequest`
 - Annotated style under `/v1/<plural>`
 - Inject `ModelMapper` with an explicit `@Qualifier`
@@ -197,7 +198,7 @@ public class UserRestController {
     }
 
     @PostMapping
-    public Mono<ResponseEntity<Void>> save(@Valid @RequestBody UserDto userDto, final ServerHttpRequest request) {
+    public Mono<ResponseEntity<Void>> save(@Validated(OnCreate.class) @RequestBody UserDto userDto, final ServerHttpRequest request) {
         User user = toDocument(userDto);
         return service.save(user)
                 .map(savedUser ->
@@ -211,7 +212,7 @@ public class UserRestController {
     }
 
     @PutMapping("/{id}")
-    public Mono<ResponseEntity<UserDto>> update(@PathVariable String id, @Valid @RequestBody UserDto userDto) {
+    public Mono<ResponseEntity<UserDto>> update(@PathVariable String id, @Validated(OnUpdate.class) @RequestBody UserDto userDto) {
         User user = toDocument(userDto);
         return service.update(id, user)
                 .map(updatedUser ->
@@ -261,7 +262,10 @@ public class MapperConfig {
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 ```
-- For the fields, use jakarta validations as `@NotBlank`, `@Size`, `@NotNull`, among others for the fields
+- For the fields, use jakarta validations as `@NotBlank`, `@Size`, `@NotNull`, among others
+- The fields are required for the create operation, for the update operation, the fields are optional
+- Use the `OnCreate.class` and `OnUpdate.class` groups to differentiate between create and update operations
+- Create the group interfaces if they don't exist
 
 ## Dependency injection
 - Use the injection by constructor with the `@RequiredArgsConstructor` annotation
