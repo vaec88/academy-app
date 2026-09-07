@@ -1,5 +1,7 @@
 package com.academy.dto;
 
+import com.academy.model.EnrolledCourse;
+import com.academy.model.EnrolledStudent;
 import com.academy.validation.groups.OnCreate;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.Valid;
@@ -25,9 +27,9 @@ public class EnrollmentDto {
 
     @Valid
     @NotNull(groups = OnCreate.class, message = "student is required")
-    private StudentDto student;
+    private EnrolledStudent student;
 
     @Valid
     @NotEmpty(groups = OnCreate.class, message = "at least one course is required")
-    private List<@Valid CourseDto> courses;
+    private List<@Valid EnrolledCourse> courses;
 }

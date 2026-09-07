@@ -26,8 +26,8 @@ public class Enrollment {
     private LocalDateTime enrollmentDate;
 
     @Field
-    private Student student;
+    private EnrolledStudent student;
 
     @Field
-    private List<Course> courses;
+    private List<EnrolledCourse> courses;
 }

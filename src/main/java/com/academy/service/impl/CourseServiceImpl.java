@@ -6,6 +6,7 @@ import com.academy.repository.IGenericRepository;
 import com.academy.service.ICourseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -34,5 +35,10 @@ public class CourseServiceImpl extends CrudServiceImpl<Course, String> implement
                     }
                     return courseRepository.save(courseFound);
                 });
+    }
+
+    @Override
+    public Flux<Course> findAllById(Iterable<String> ids) {
+        return courseRepository.findAllById(ids);
     }
 }
