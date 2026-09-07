@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -34,31 +35,9 @@ public class EnrollmentServiceImpl extends CrudServiceImpl<Enrollment, String> i
 
     @Override
     public Mono<Enrollment> save(Enrollment document) {
-        String studentId = document.getStudent().getId();
-        Set<String> courseIds = document.getCourses().stream()
-                .map(EnrolledCourse::getId)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-
-        return studentService.findById(studentId)
-                .switchIfEmpty(Mono.error(new ModelNotFoundException("Student with id: " + studentId + " not found")))
-                .map(student -> EnrolledStudent.builder()
-                        .id(student.getId())
-                        .firstName(student.getFirstName())
-                        .lastName(student.getLastName())
-                        .email(student.getEmail())
-                        .build())
-                .flatMap(enrolledStudent -> courseService.findAllById(courseIds)
-                        .map(course -> EnrolledCourse.builder()
-                                .id(course.getId())
-                                .name(course.getName())
-                                .build())
-                        .collectList()
+        return resolveStudent(document.getStudent())
+                .flatMap(enrolledStudent -> resolveCourses(document.getCourses())
                         .flatMap(enrolledCourses -> {
-                            if (enrolledCourses.size() != courseIds.size()) {
-                                Set<String> missingIds = new LinkedHashSet<>(courseIds);
-                                enrolledCourses.forEach(enrolledCourse -> missingIds.remove(enrolledCourse.getId()));
-                                return Mono.error(new ModelNotFoundException("Courses with ids: " + missingIds + " not found"));
-                            }
                             document.setStudent(enrolledStudent);
                             document.setCourses(enrolledCourses);
                             return enrollmentRepository.save(document);
@@ -72,13 +51,49 @@ public class EnrollmentServiceImpl extends CrudServiceImpl<Enrollment, String> i
                     if (document.getEnrollmentDate() != null) {
                         enrollmentFound.setEnrollmentDate(document.getEnrollmentDate());
                     }
-                    if (document.getStudent() != null) {
-                        enrollmentFound.setStudent(document.getStudent());
+                    Mono<EnrolledStudent> studentResolution = document.getStudent() == null
+                            ? Mono.empty()
+                            : resolveStudent(document.getStudent());
+                    Mono<List<EnrolledCourse>> coursesResolution = document.getCourses() == null
+                            ? Mono.empty()
+                            : resolveCourses(document.getCourses());
+
+                    return studentResolution.doOnNext(enrollmentFound::setStudent)
+                            .then(coursesResolution.doOnNext(enrollmentFound::setCourses))
+                            .then(Mono.defer(() -> enrollmentRepository.save(enrollmentFound)));
+                });
+    }
+
+    private Mono<EnrolledStudent> resolveStudent(EnrolledStudent enrolledStudent) {
+        String studentId = enrolledStudent.getId();
+        return studentService.findById(studentId)
+                .switchIfEmpty(Mono.error(new ModelNotFoundException("Student with id: " + studentId + " not found")))
+                .map(foundStudent -> EnrolledStudent.builder()
+                        .id(foundStudent.getId())
+                        .firstName(foundStudent.getFirstName())
+                        .lastName(foundStudent.getLastName())
+                        .email(foundStudent.getEmail())
+                        .build());
+    }
+
+    private Mono<List<EnrolledCourse>> resolveCourses(List<EnrolledCourse> enrolledCourses) {
+        Set<String> courseIds = enrolledCourses.stream()
+                .map(EnrolledCourse::getId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        return courseService.findAllById(courseIds)
+                .map(course -> EnrolledCourse.builder()
+                        .id(course.getId())
+                        .name(course.getName())
+                        .build())
+                .collectList()
+                .flatMap(foundEnrolledCourses -> {
+                    if (foundEnrolledCourses.size() != courseIds.size()) {
+                        Set<String> missingIds = new LinkedHashSet<>(courseIds);
+                        foundEnrolledCourses.forEach(enrolledCourse -> missingIds.remove(enrolledCourse.getId()));
+                        return Mono.error(new ModelNotFoundException("Courses with ids: " + missingIds + " not found"));
                     }
-                    if (document.getCourses() != null) {
-                        enrollmentFound.setCourses(document.getCourses());
-                    }
-                    return enrollmentRepository.save(enrollmentFound);
+                    return Mono.just(foundEnrolledCourses);
                 });
     }
 }
