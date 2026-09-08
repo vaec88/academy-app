@@ -4,6 +4,7 @@ import com.academy.handler.CourseHandler;
 import com.academy.handler.EnrollmentHandler;
 import com.academy.handler.RoleHandler;
 import com.academy.handler.StudentHandler;
+import com.academy.handler.UserHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.server.RouterFunction;
@@ -52,5 +53,14 @@ public class RouterConfig {
                 .andRoute(POST("/v2/roles"), roleHandler::save)
                 .andRoute(PUT("/v2/roles/{id}"), roleHandler::update)
                 .andRoute(DELETE("/v2/roles/{id}"), roleHandler::delete);
+    }
+
+    @Bean
+    public RouterFunction<ServerResponse> userRoutes(UserHandler userHandler) {
+        return route(GET("/v2/users"), userHandler::findAll)
+                .andRoute(GET("/v2/users/{id}"), userHandler::findById)
+                .andRoute(POST("/v2/users"), userHandler::save)
+                .andRoute(PUT("/v2/users/{id}"), userHandler::update)
+                .andRoute(DELETE("/v2/users/{id}"), userHandler::delete);
     }
 }
