@@ -5,7 +5,9 @@ import com.academy.repository.IGenericRepository;
 import com.academy.repository.IStudentRepository;
 import com.academy.service.IStudentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -17,6 +19,11 @@ public class StudentServiceImpl extends CrudServiceImpl<Student, String> impleme
     @Override
     protected IGenericRepository<Student, String> getRepository() {
         return studentRepository;
+    }
+
+    @Override
+    public Flux<Student> findAll(Sort sort) {
+        return studentRepository.findAll(sort);
     }
 
     @Override

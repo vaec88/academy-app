@@ -8,6 +8,7 @@ import com.academy.validation.groups.OnUpdate;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -34,8 +36,9 @@ public class StudentRestController {
     private final ModelMapper mapper;
 
     @GetMapping
-    public Mono<ResponseEntity<Flux<StudentDto>>> findAll() {
-        Flux<Student> students = service.findAll();
+    public Mono<ResponseEntity<Flux<StudentDto>>> findAll(@RequestParam(defaultValue = "createdAt") String sortBy,
+                                                          @RequestParam(defaultValue = "asc") String sortDir) {
+        Flux<Student> students = service.findAll(Sort.by(Sort.Direction.fromString(sortDir.toLowerCase()), sortBy));
         return Mono.just(
                 ResponseEntity.ok()
                         .contentType(MediaType.APPLICATION_JSON)
