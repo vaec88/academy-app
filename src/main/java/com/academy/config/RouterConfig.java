@@ -1,6 +1,7 @@
 package com.academy.config;
 
 import com.academy.handler.CourseHandler;
+import com.academy.handler.StudentHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.server.RouterFunction;
@@ -22,5 +23,14 @@ public class RouterConfig {
                 .andRoute(POST("/v2/courses"), courseHandler::save)
                 .andRoute(PUT("/v2/courses/{id}"), courseHandler::update)
                 .andRoute(DELETE("/v2/courses/{id}"), courseHandler::delete);
+    }
+
+    @Bean
+    public RouterFunction<ServerResponse> studentRoutes(StudentHandler studentHandler) {
+        return route(GET("/v2/students"), studentHandler::findAll)
+                .andRoute(GET("/v2/students/{id}"), studentHandler::findById)
+                .andRoute(POST("/v2/students"), studentHandler::save)
+                .andRoute(PUT("/v2/students/{id}"), studentHandler::update)
+                .andRoute(DELETE("/v2/students/{id}"), studentHandler::delete);
     }
 }
