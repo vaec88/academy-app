@@ -23,7 +23,7 @@ public class SecurityConfig {
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/v1/**").permitAll()
+                        .pathMatchers("/v1/**", "/v2/**").permitAll()
                         .anyExchange().authenticated())
                 .build();
     }
