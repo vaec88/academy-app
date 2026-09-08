@@ -6,6 +6,7 @@ import com.academy.repository.IRoleRepository;
 import com.academy.service.IRoleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -31,5 +32,10 @@ public class RoleServiceImpl extends CrudServiceImpl<Role, String> implements IR
                     }
                     return roleRepository.save(roleFound);
                 });
+    }
+
+    @Override
+    public Flux<Role> findAllById(Iterable<String> ids) {
+        return roleRepository.findAllById(ids);
     }
 }
