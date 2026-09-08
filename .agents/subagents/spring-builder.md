@@ -46,6 +46,8 @@ util: The class name only
 - The database fields naming convention must be camel case too, database: `firstName` instead of `first_name` | model: `firstName`
 - The audit fields such as creation date or modified date, use the `@CreatedDate` and `@LastModifiedDate` annotations,
   additionally, if not exist, create the `MongoConfig` class with the `@EnableReactiveMongoAuditing` annotation
+- If a field is an embedded document, use snapshot pattern.
+  The snapshot is not a collection and must be without audit annotations.
 - Class annotations:
 ```java
 @Data
@@ -156,6 +158,7 @@ public class UserServiceImpl extends CrudServiceImpl<User, String> implements IU
     }
 }
 ```
+- To save or update documents that has embedded documents, validate that embedded document exist before of execute operation.
 
 ## Controller
 - The entity model have a Rest Controller
