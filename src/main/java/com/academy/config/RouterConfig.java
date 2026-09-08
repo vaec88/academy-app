@@ -2,6 +2,7 @@ package com.academy.config;
 
 import com.academy.handler.CourseHandler;
 import com.academy.handler.EnrollmentHandler;
+import com.academy.handler.RoleHandler;
 import com.academy.handler.StudentHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,5 +43,14 @@ public class RouterConfig {
                 .andRoute(POST("/v2/enrollments"), enrollmentHandler::save)
                 .andRoute(PUT("/v2/enrollments/{id}"), enrollmentHandler::update)
                 .andRoute(DELETE("/v2/enrollments/{id}"), enrollmentHandler::delete);
+    }
+
+    @Bean
+    public RouterFunction<ServerResponse> roleRoutes(RoleHandler roleHandler) {
+        return route(GET("/v2/roles"), roleHandler::findAll)
+                .andRoute(GET("/v2/roles/{id}"), roleHandler::findById)
+                .andRoute(POST("/v2/roles"), roleHandler::save)
+                .andRoute(PUT("/v2/roles/{id}"), roleHandler::update)
+                .andRoute(DELETE("/v2/roles/{id}"), roleHandler::delete);
     }
 }
