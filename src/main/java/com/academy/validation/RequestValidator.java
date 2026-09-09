@@ -1,16 +1,26 @@
 package com.academy.validation;
 
 import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.server.ServerWebInputException;
 import reactor.core.publisher.Mono;
 
 import java.util.Set;
-import java.util.stream.Collectors;
 
+/**
+ * Bean validation for functional endpoints, where {@code @Validated} is not applied:
+ * WebFlux.fn only deserializes the body, it never validates it.
+ * <p>
+ * Violations are raised as a {@link ConstraintViolationException} so that
+ * {@code GlobalErrorWebExceptionHandler} can report them per field, the same way it
+ * reports the {@code WebExchangeBindException} thrown by the annotated controllers.
+ *
+ * @param groups validation groups to apply, mirroring {@code @Validated(OnCreate.class)};
+ *               none means the {@code Default} group only
+ */
 @Component
 @RequiredArgsConstructor
 public class RequestValidator {
@@ -19,19 +29,13 @@ public class RequestValidator {
 
     public <T> Mono<T> validate(T document, Class<?>... groups) {
         if (document == null) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid request body"));
+            return Mono.error(new ServerWebInputException("Request body is required"));
         }
 
-        Set<ConstraintViolation<T>> constraints = validator.validate(document, groups);
+        Set<ConstraintViolation<T>> violations = validator.validate(document, groups);
 
-        if (constraints == null || constraints.isEmpty()) {
-            return Mono.just(document);
-        }
-
-        String messages = constraints.stream()
-                .map(ConstraintViolation::getMessage)
-                .collect(Collectors.joining(","));
-
-        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, messages));
+        return violations.isEmpty()
+                ? Mono.just(document)
+                : Mono.error(new ConstraintViolationException(violations));
     }
 }
