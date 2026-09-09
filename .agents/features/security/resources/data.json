@@ -1,0 +1,32 @@
+[
+  {
+    "_id": { "$oid": "6aa031cc6f55c5e405e4f0d6" },
+    "username": "sysadmin",
+    "status": true,
+    "roles": [
+      {
+        "_id": { "$oid": "6a9f680203899cd6ebcb233a" },
+        "name": "ADMIN"
+      }
+    ],
+    "createdAt": "2026-09-08T11:03:24.482",
+    "modifiedAt": "2026-09-09T15:22:10.017"
+  },
+  {
+    "_id": { "$oid": "6aa098b0fdab799c8a86c5ea" },
+    "username": "participant",
+    "status": true,
+    "roles": [
+      {
+        "_id": { "$oid": "6a9f681703899cd6ebcb233b" },
+        "name": "USER"
+      },
+      {
+        "_id": { "$oid": "6aa0945d3e9d7578e6c701f2" },
+        "name": "INVITED"
+      }
+    ],
+    "createdAt": "2026-09-08T18:22:24.204",
+    "modifiedAt": "2026-09-09T15:22:35.246"
+  }
+]
