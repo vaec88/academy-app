@@ -84,7 +84,7 @@ Written in this order — each one carries a `//Clase Sn` marker:
 | S4 | `security/JwtUtil`                         | `generateToken`, `getAllClaimsFromToken`, `getUsernameFromToken`, `validateToken` |
 | S5 | `security/AuthenticationManager`           | `ReactiveAuthenticationManager`: token → `Authentication` with authorities |
 | S6 | `security/SecurityContextRepository`       | `ServerSecurityContextRepository`: header → `SecurityContext`. `save()` returns `null`, nothing is stored |
-| S7 | `security/WebSecurityConfig`               | `@EnableWebFluxSecurity`, `@EnableReactiveMethodSecurity`, the `SecurityWebFilterChain` and the `BCryptPasswordEncoder` bean |
+| S7 | `config` additions                         | `@EnableWebFluxSecurity`, `@EnableReactiveMethodSecurity`, the `SecurityWebFilterChain` and the `BCryptPasswordEncoder` bean |
 | S8 | `service` + `repository` additions         | `IUserRepository.findOneByUsername`, `IUserService.searchByUser` and `saveHash`. Comes after S1 (it returns `security.User`) and after S7 (it injects the encoder bean) |
 | S9 | `controller/LoginRestController`           | `POST /login` — the first end-to-end test |
 | S10 | `security/AuthValidator` + `@PreAuthorize` | Method security on a chain that already works |
@@ -96,6 +96,7 @@ Written in this order — each one carries a `//Clase Sn` marker:
 |------------------------------------| --- |
 | `pom.xml`                          | `spring-boot-starter-security`; `jjwt-api` (compile), `jjwt-impl` and `jjwt-jackson` (runtime) |
 | `application.yaml`                 | the `jjwt.secret` property |
+| `config/SecurityConfig`            | `@EnableWebFluxSecurity`, `@EnableReactiveMethodSecurity`, the `SecurityWebFilterChain` and the `BCryptPasswordEncoder` bean |
 | `repository/IUserRepository`       | `Mono<User> findOneByUsername(String username)` |
 | `service/IUserService`             | `searchByUser` and `saveHash` |
 | `service/impl/UserServiceImpl`     | Both implementations, plus two injected beans: `IRoleRepository` and `BCryptPasswordEncoder` |
