@@ -10,6 +10,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.HttpMessageWriter;
 import org.springframework.http.codec.ServerCodecConfigurer;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.server.ServerAuthenticationEntryPoint;
+import org.springframework.security.web.server.authorization.ServerAccessDeniedHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
@@ -32,9 +36,13 @@ import java.util.stream.Collectors;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RequiredArgsConstructor
 @Slf4j
-public class GlobalErrorWebExceptionHandler implements WebExceptionHandler {
+public class GlobalErrorWebExceptionHandler
+        implements WebExceptionHandler, ServerAuthenticationEntryPoint, ServerAccessDeniedHandler {
 
-    //private static final Logger log = LoggerFactory.getLogger(GlobalErrorWebExceptionHandler.class);
+    // Deliberately generic: the concrete reason (bad credentials, expired token, missing authority)
+    // stays in the log so the response cannot be used to probe the security setup.
+    private static final String UNAUTHORIZED_MESSAGE = "Authentication is required to access this resource";
+    private static final String FORBIDDEN_MESSAGE = "Access to this resource is denied";
 
     private static final Comparator<CustomErrorResponse.ValidationError> BY_FIELD_THEN_MESSAGE =
             Comparator.comparing(CustomErrorResponse.ValidationError::field)
@@ -44,12 +52,6 @@ public class GlobalErrorWebExceptionHandler implements WebExceptionHandler {
 
     @Override
     public Mono<Void> handle(ServerWebExchange exchange, Throwable ex) {
-        // A streaming body (findAll) may already be on the wire; the status line and part of the
-        // payload are gone, so replacing them here would fail. Let the error propagate instead.
-        if (exchange.getResponse().isCommitted()) {
-            return Mono.error(ex);
-        }
-
         String path = exchange.getRequest().getPath().value();
 
         CustomErrorResponse errorResponse = switch (ex) {
@@ -77,6 +79,12 @@ public class GlobalErrorWebExceptionHandler implements WebExceptionHandler {
                     path
             );
 
+            // Normally translated inside the security filter chain (see commence / handle below);
+            // reached only when the exception escapes it, e.g. from a @PreAuthorize outside the chain.
+            case AuthenticationException _ -> unauthorized(path);
+
+            case AccessDeniedException _ -> forbidden(path);
+
             case ResponseStatusException statusEx -> new CustomErrorResponse(
                     statusEx.getStatusCode().value(),
                     messageOrDefault(statusEx.getReason(), reasonPhrase(statusEx.getStatusCode().value())),
@@ -89,6 +97,43 @@ public class GlobalErrorWebExceptionHandler implements WebExceptionHandler {
                     path
             );
         };
+
+        return write(exchange, errorResponse, ex);
+    }
+
+    /**
+     * {@link ServerAuthenticationEntryPoint}: Spring Security rejects the unauthenticated request
+     * inside its own filter chain, so it never reaches {@link #handle(ServerWebExchange, Throwable)}.
+     */
+    @Override
+    public Mono<Void> commence(ServerWebExchange exchange, AuthenticationException ex) {
+        return write(exchange, unauthorized(exchange.getRequest().getPath().value()), ex);
+    }
+
+    /**
+     * {@link ServerAccessDeniedHandler}: same story as {@link #commence} for an authenticated
+     * principal that lacks the required authority. Overload of the {@link WebExceptionHandler}
+     * method above — both are dispatched through their own interface, so they never collide.
+     */
+    @Override
+    public Mono<Void> handle(ServerWebExchange exchange, AccessDeniedException ex) {
+        return write(exchange, forbidden(exchange.getRequest().getPath().value()), ex);
+    }
+
+    private static CustomErrorResponse unauthorized(String path) {
+        return new CustomErrorResponse(HttpStatus.UNAUTHORIZED.value(), UNAUTHORIZED_MESSAGE, path);
+    }
+
+    private static CustomErrorResponse forbidden(String path) {
+        return new CustomErrorResponse(HttpStatus.FORBIDDEN.value(), FORBIDDEN_MESSAGE, path);
+    }
+
+    private Mono<Void> write(ServerWebExchange exchange, CustomErrorResponse errorResponse, Throwable ex) {
+        // A streaming body (findAll) may already be on the wire; the status line and part of the
+        // payload are gone, so replacing them here would fail. Let the error propagate instead.
+        if (exchange.getResponse().isCommitted()) {
+            return Mono.error(ex);
+        }
 
         logError(exchange, errorResponse, ex);
 
@@ -153,7 +198,8 @@ public class GlobalErrorWebExceptionHandler implements WebExceptionHandler {
         if (errorResponse.status() >= HttpStatus.INTERNAL_SERVER_ERROR.value()) {
             log.error("{} failed with {}", request, errorResponse.status(), ex);
         } else {
-            log.debug("{} rejected with {}: {}", request, errorResponse.status(), errorResponse.message());
+            // ex is spelled out because 401/403 answer with a deliberately generic message.
+            log.debug("{} rejected with {}: {} [{}]", request, errorResponse.status(), errorResponse.message(), ex.toString());
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.academy.config;
 
+import com.academy.exception.GlobalErrorWebExceptionHandler;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
@@ -14,7 +16,10 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
  */
 @Configuration
 @EnableWebFluxSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final GlobalErrorWebExceptionHandler errorHandler;
 
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
@@ -25,6 +30,11 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/v1/**", "/v2/**").permitAll()
                         .anyExchange().authenticated())
+                // Security translates 401/403 inside its own filter chain, so without this the
+                // responses come back with an empty body instead of a CustomErrorResponse.
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(errorHandler)
+                        .accessDeniedHandler(errorHandler))
                 .build();
     }
 
