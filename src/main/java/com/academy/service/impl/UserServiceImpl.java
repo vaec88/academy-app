@@ -2,14 +2,17 @@ package com.academy.service.impl;
 
 import com.academy.exception.ModelNotFoundException;
 import com.academy.model.AssignedRole;
+import com.academy.model.Role;
 import com.academy.model.User;
 import com.academy.repository.IGenericRepository;
+import com.academy.repository.IRoleRepository;
 import com.academy.repository.IUserRepository;
 import com.academy.service.IRoleService;
 import com.academy.service.IUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -26,11 +29,40 @@ public class UserServiceImpl extends CrudServiceImpl<User, String> implements IU
 
     private final IRoleService roleService;
 
+    // Used only by searchByUser, which needs the role documents themselves, not the CRUD service.
+    private final IRoleRepository roleRepository;
+
     private final PasswordEncoder passwordEncoder;
 
     @Override
     protected IGenericRepository<User, String> getRepository() {
         return userRepository;
+    }
+
+    //Clase S8
+    @Override
+    public Mono<com.academy.security.User> searchByUser(String username) {
+        return userRepository.findOneByUsername(username)
+                // The embedded role carries a name already, but it is a snapshot; the role
+                // document is the source of truth, so each id is read back.
+                .zipWhen(user -> Flux.fromIterable(user.getRoles() == null ? List.<AssignedRole>of() : user.getRoles())
+                        .flatMap(assignedRole -> roleRepository.findById(assignedRole.getId()))
+                        .map(Role::getName)
+                        .collectList())
+                .map(tuple -> new com.academy.security.User(
+                        tuple.getT1().getUsername(),
+                        tuple.getT1().getPassword(),
+                        Boolean.TRUE.equals(tuple.getT1().getStatus()),
+                        tuple.getT2()
+                ));
+    }
+
+    //Clase S8
+    @Override
+    public Mono<User> saveHash(User user) {
+        return encodePassword(user.getPassword())
+                .doOnNext(user::setPassword)
+                .then(Mono.defer(() -> userRepository.save(user)));
     }
 
     @Override

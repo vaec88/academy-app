@@ -187,3 +187,168 @@ Three things about this data:
 ---
 
 # Part 2 — Implementation from Spec
+
+| |                                                     |
+| --- |-----------------------------------------------------|
+| **Status** | Implemented                                         |
+| **Build** | `.\mvnw.cmd clean package` — BUILD SUCCESS, 50 tests, 0 failures |
+| **Runtime check** | Performed: MongoDB was up on `localhost:27017` and the `academy` database was already seeded |
+
+## What was built
+
+Ten classes carrying the `//Clase Sn` markers, plus the four edits to existing code. The chain is
+entirely hand-written: no resource-server starter, no `JwtDecoder`, no `oauth2ResourceServer` DSL.
+
+### New files
+
+| Marker | File |
+| --- | --- |
+| S1 | `src/main/java/com/academy/security/User.java` |
+| S2 | `src/main/java/com/academy/security/AuthRequest.java` |
+| S3 | `src/main/java/com/academy/security/AuthResponse.java` |
+| S4 | `src/main/java/com/academy/security/JwtUtil.java` |
+| S5 | `src/main/java/com/academy/security/AuthenticationManager.java` |
+| S6 | `src/main/java/com/academy/security/SecurityContextRepository.java` |
+| S9 | `src/main/java/com/academy/controller/LoginRestController.java` |
+| S10 | `src/main/java/com/academy/security/AuthValidator.java` |
+
+### Modified files
+
+| File | Change |
+| --- | --- |
+| `pom.xml` | `jjwt.version` property = `0.13.0`; `jjwt-api` (compile), `jjwt-impl` + `jjwt-jackson` (runtime). `spring-boot-starter-security` was already declared. |
+| `src/main/resources/application.yaml` | `jjwt.secret` with the `${JWT_SECRET:...}` default |
+| `config/SecurityConfig.java` | S7 — rewritten chain |
+| `repository/IUserRepository.java` | S8 — `Mono<User> findOneByUsername(String)` |
+| `service/IUserService.java` | S8 — `searchByUser`, `saveHash` |
+| `service/impl/UserServiceImpl.java` | S8 — both implementations + `IRoleRepository` |
+| `controller/StudentRestController.java` | S10 — `@PreAuthorize("@authValidator.isValid()")` on `findAll` |
+
+## Per-class notes
+
+**S1 `security.User`** — `@Data @AllArgsConstructor @NoArgsConstructor` implementing `UserDetails`.
+Lombok supplies `getUsername`, `getPassword` and `isEnabled` (the field is a primitive `boolean`, so
+the generated `isEnabled()` overrides the interface default). `getAuthorities()` maps role names
+verbatim with **no `ROLE_` prefix** — this is what makes `hasAuthority('ADMIN')` succeed while
+`hasRole('ADMIN')` fails. `password` is `@JsonIgnore`d; it is read once at `/login` and never
+serialised. A null `roles` list yields `List.of()` rather than an NPE.
+
+**S4 `JwtUtil`** — jjwt **0.13.0 uses the 0.12-era fluent API**, not the 0.11 `setClaims`/
+`parseClaimsJws` style. Verified against the resolved jar with `javap` before writing:
+`Jwts.builder().claims(map).subject(..).issuedAt(..).expiration(..).signWith(SecretKey).compact()`
+and `Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload()`. The secret is
+taken as a constructor `@Value` parameter and turned into a `SecretKey` once via
+`Keys.hmacShaKeyFor`; the 64-character default is 512 bits, so jjwt selects **HS512** (confirmed in a
+live token header: `{"alg":"HS512"}`). Expiration is five hours. One method beyond the spec's four:
+`getRolesFromToken`, which narrows the raw `List` from the `roles` claim in one place instead of
+leaving an unchecked cast at the call site.
+
+**S5 `AuthenticationManager`** — an invalid token produces `Mono.empty()`, never an error signal.
+The exchange then has no security context, `anyExchange().authenticated()` rejects it, and the entry
+point writes the 401. `validateToken` swallows `JwtException` and `IllegalArgumentException` and logs
+at debug, so a bad signature, a malformed token and an expired token are indistinguishable to the
+caller. Token parsing is pure CPU work over a short string, so it stays on the event loop — no
+`subscribeOn` needed and no blocking call anywhere in the chain.
+
+**S6 `SecurityContextRepository`** — `BEARER_PREFIX` is compared with `startsWith`, which is
+case-sensitive, so a lowercase `bearer ` never matches and falls through to 401 as required.
+
+**S7 `SecurityConfig`** — the `.pathMatchers("/v1/**", "/v2/**").permitAll()` line is gone; only
+`/login` is `permitAll` and everything else is `authenticated()`. Spring Security 7.1 lambda DSL
+throughout, no `.and()`. The pre-existing `.exceptionHandling(...)` wiring of
+`GlobalErrorWebExceptionHandler` as both `authenticationEntryPoint` and `accessDeniedHandler` was
+kept — it is what gives 401/403 a JSON body (see the note below). `@EnableReactiveMethodSecurity`
+added for S10.
+
+**S8 service additions** — `searchByUser` follows the spec's `zipWhen` shape exactly: the user is
+read by username, then each embedded role id is resolved against the `roles` collection so the
+name comes from the role document rather than from the embedded snapshot. A null `roles` array
+degrades to an empty list instead of throwing, and `status` is unboxed with
+`Boolean.TRUE.equals(...)` so a missing `status` field means "not enabled" rather than an NPE.
+`saveHash` reuses the existing private `encodePassword` helper, which already runs BCrypt on
+`Schedulers.boundedElastic()`.
+
+**S9 `LoginRestController`** — an unknown username makes `searchByUser` emit empty; a wrong password
+is removed by `filterWhen`. Both paths land on the same `defaultIfEmpty(401)` with no body, so they
+are byte-for-byte identical to the caller. BCrypt verification is deliberately expensive, so
+`matches` runs on `Schedulers.boundedElastic()`.
+
+## Deviations from the spec
+
+1. **`SecurityContextRepository.save()` returns `Mono.empty()`, not `null`.** The spec says
+   "`save()` returns `null`". Returning a literal `null` from a `Mono<Void>` method is a latent NPE
+   the moment anything subscribes to it, and it violates the project's hard rule that every public
+   API returns a real `Mono`/`Flux`. `Mono.empty()` expresses the same thing — nothing is stored —
+   safely.
+2. **`UserServiceImpl` injects `PasswordEncoder`, not `BCryptPasswordEncoder`.** The class already
+   had a `PasswordEncoder` field before this change, and `UserServiceImplTest` injects a
+   `@Mock PasswordEncoder` through `@InjectMocks`. Narrowing the field type would have broken that
+   test, and the acceptance criteria require the existing tests to stay untouched. The bean is the
+   same object either way: `SecurityConfig.passwordEncoder()` now **declares** the concrete
+   `BCryptPasswordEncoder` return type, so `LoginRestController` gets the concrete type it needs for
+   `matches` while every `PasswordEncoder` injection point still resolves to the same bean.
+   `IRoleRepository` was added as specified.
+3. **`AuthRequest` carries `@NotBlank` on both fields.** Not in the spec, but `CLAUDE.md` mandates
+   `@Valid` on request bodies. An empty username now yields 400, not 401. This does not weaken the
+   "indistinguishable" property, which is about *existing vs non-existing* users.
+4. **`JwtUtil` reads the secret as a constructor `@Value` parameter** rather than an `@Value` field,
+   to keep the project's constructor-injection style and let the `SecretKey` be `final`.
+5. **`spring-boot-starter-security` was already in `pom.xml`**, so only the three jjwt artifacts were
+   added.
+
+## Note on `GlobalErrorWebExceptionHandler`
+
+Its 401/403 branch **does** fire, but not through the `WebExceptionHandler.handle` path the spec's
+comment implies. It fires through the `ServerAuthenticationEntryPoint.commence` and
+`ServerAccessDeniedHandler.handle` overloads, because `SecurityConfig` wires the same bean into
+`.exceptionHandling(...)`. Verified live — both are non-empty JSON bodies. Nothing was changed there.
+
+One wording mismatch worth recording: the spec's contract table says the 401 body carries
+`message: "Unauthorized access"`. The handler as written emits
+`"Authentication is required to access this resource"` (401) and `"Access to this resource is denied"`
+(403) — deliberately generic strings, per its own comment, so the response cannot be used to probe
+the security setup. The **shape** matches the contract; the **string** does not. Left as-is, since
+`exception/` was explicitly out of scope.
+
+## Acceptance criteria
+
+MongoDB turned out to be running with the `academy` database already seeded (including the password
+hashes that `resources/data.json` omits — that file has no `password` field, so a fresh import from
+it alone would make every login return 401). That allowed the full list to be checked live against
+the packaged jar on `localhost:8080`.
+
+**Verified by the build (`.\mvnw.cmd clean package`, BUILD SUCCESS, 50/50 tests):**
+
+* [x] `./mvnw test` stays green with the existing tests untouched — 50 tests, 0 failures. No test
+  file was edited; `UserServiceImplTest` still passes with the extra `IRoleRepository` constructor
+  parameter.
+
+**Verified live against a running app + MongoDB:**
+
+* [x] `GET /v1/students` with no header → `401` (was `200` before the change).
+* [x] `POST /login` `sysadmin` / `123456789` → `200` with an `access_token` field.
+* [x] Wrong password and unknown user both → `401` with an empty body.
+* [x] Token decodes to `{"roles":["ADMIN"],"username":"sysadmin","test-value":"sample-test-value",`
+  `"sub":"sysadmin","iat":...,"exp":...}` with `exp - iat = 18000` s = exactly five hours;
+  header is `{"alg":"HS512"}`.
+* [x] `GET /v1/students` with `Authorization: Bearer <token>` → `200` and the student list; without
+  it → `401` and the JSON error body.
+* [x] Lowercase `bearer <token>` → `401`; the bare token with no prefix → `401`.
+* [x] A token with four characters of the signature replaced → `401`.
+* [x] `POST /v2/students` — a functional route — → `401` with no change to `RouterConfig`.
+* [x] `participant` logs in and its token carries `["USER","INVITED"]` (the seeded document has two
+  embedded roles, one more than the spec's table shows) while `sysadmin` carries `["ADMIN"]`, both
+  read back from the `roles` collection by the embedded `_id`.
+* [x] With `AuthValidator.isValid()` returning `false`, `findAll` → `403` (`"Access to this resource
+  is denied"`) while `findById` → `200`. `AuthValidator` was restored to `return true` afterwards.
+* [x] `@PreAuthorize("hasRole('ADMIN')")` → `403`; `@PreAuthorize("hasAuthority('ADMIN')")` → `200`,
+  confirming the missing `ROLE_` prefix in `getAuthorities()`. The annotation was restored to
+  `@authValidator.isValid()` afterwards.
+
+**Not exercised:**
+
+* An expired token was not waited out; expiry rejection rests on `parseSignedClaims` throwing
+  `ExpiredJwtException`, which `validateToken` catches alongside every other `JwtException`, and on
+  the tampered-token result above.
+* `saveHash` has no caller yet — it compiles and follows the same `encodePassword` path as `save`,
+  but no request exercises it.

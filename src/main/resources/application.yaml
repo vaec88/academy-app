@@ -3,3 +3,6 @@ spring:
     name: academy-app
   mongodb:
     uri: ${MONGODB_URI:mongodb://localhost:27017/academy}
+
+jjwt:
+  secret: ${JWT_SECRET:4u7x!A%D*G-KaNdRgUkXp2s5v8y/B?E(H+MbQeShVmYq3t6w9z$C&F)J@NcRfUjW}

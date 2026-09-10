@@ -12,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,6 +36,10 @@ public class StudentRestController {
     @Qualifier("defaultMapper")
     private final ModelMapper mapper;
 
+    //Clase S10
+    // Method security on top of the path rules: the chain has already authenticated the caller,
+    // this decides whether that caller may run this method. Try hasAuthority('ADMIN') here too.
+    @PreAuthorize("@authValidator.isValid()")
     @GetMapping
     public Mono<ResponseEntity<Flux<StudentDto>>> findAll(@RequestParam(defaultValue = "createdAt") String sortBy,
                                                           @RequestParam(defaultValue = "asc") String sortDir) {
