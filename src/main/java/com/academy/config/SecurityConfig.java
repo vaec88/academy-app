@@ -6,6 +6,7 @@ import com.academy.security.SecurityContextRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -13,6 +14,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 
 //Clase S7
+
 /**
  * Stateless JWT chain, written by hand rather than pulled in from the resource-server starter so
  * every step stays visible: the {@link SecurityContextRepository} reads the bearer header, the
@@ -45,6 +47,9 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         // /login is the only way in; it is also the only anonymous endpoint.
                         .pathMatchers("/login").permitAll()
+                        .pathMatchers("/v1/users/**", "/v2/users/**",
+                                "/v1/roles/**", "/v2/roles/**").hasAuthority("ADMIN")
+                        .pathMatchers(HttpMethod.DELETE, "/v1/**", "/v2/**").hasAuthority("ADMIN")
                         .anyExchange().authenticated())
                 // Security translates 401/403 inside its own filter chain, so without this the
                 // responses come back with an empty body instead of a CustomErrorResponse.
