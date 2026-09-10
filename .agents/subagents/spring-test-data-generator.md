@@ -22,7 +22,7 @@ Academy enrollments system (db `academy`). Use plausible, clearly fictional stud
 
 ## What to produce
 
-1. Read each DTO under `src/main/java/com/mitocode/dto` for exact field names and Jakarta constraints
+1. Read each DTO under `src/main/java/com/academy/dto` for exact field names and Jakarta constraints
     - DTO fields names are the same as document fields names, and the endpoint deserializes the DTO:
     - `StudentDto`:
       - `firstName` (`@NotBlank`, `@Size(max = 60)`)
@@ -38,7 +38,7 @@ Academy enrollments system (db `academy`). Use plausible, clearly fictional stud
     - `EnrollmentDto`:
       - `enrollmentDate` (`@NotNull`)
       - `student` (`@Valid`, `@NotNull`)
-      - `course` (`@Valid`, `@NotEmpty`)
+      - `courses` (`@Valid`, `@NotEmpty`)
       
 2. Write `student.json`, `course.json` and `enrollment.json` in `src/main/resources/test-data/` path, each a small array (2–3) of valid records.
 3. Omit `id` (server-assigned) unless the request is explicitly about update payloads.

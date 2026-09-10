@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Reactive Programming with Spring WebFlux",
+    "acronyms": "RSWF-101",
+    "status": true
+  },
+  {
+    "name": "NoSQL Data Modeling with MongoDB",
+    "acronyms": "NSDM-201",
+    "status": true
+  },
+  {
+    "name": "API Security and JWT Fundamentals",
+    "acronyms": "ASJF-301",
+    "status": true
+  }
+]

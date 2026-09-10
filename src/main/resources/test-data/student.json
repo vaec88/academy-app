@@ -1,0 +1,26 @@
+[
+  {
+    "firstName": "Amaru",
+    "lastName": "Quispehuaman",
+    "dni": "70112233",
+    "age": 24,
+    "email": "amaru.quispehuaman@example.test",
+    "status": true
+  },
+  {
+    "firstName": "Belisa",
+    "lastName": "Marroquintero",
+    "dni": "70445566",
+    "age": 31,
+    "email": "belisa.marroquintero@example.test",
+    "status": true
+  },
+  {
+    "firstName": "Corvino",
+    "lastName": "Ferrandiaz",
+    "dni": "70778899",
+    "age": 19,
+    "email": "corvino.ferrandiaz@example.test",
+    "status": true
+  }
+]
