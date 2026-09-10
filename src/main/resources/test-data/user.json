@@ -1,0 +1,22 @@
+[
+  {
+    "username": "sysadmin",
+    "password": "123456789",
+    "status": true,
+    "roles": [
+      {
+        "id": "__ROLE_ID_1__"
+      }
+    ]
+  },
+  {
+    "username": "participant",
+    "password": "987654321",
+    "status": true,
+    "roles": [
+      {
+        "id": "__ROLE_ID_2__"
+      }
+    ]
+  }
+]

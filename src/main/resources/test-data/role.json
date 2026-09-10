@@ -1,0 +1,10 @@
+[
+  {
+    "name": "ADMIN",
+    "status": true
+  },
+  {
+    "name": "USER",
+    "status": true
+  }
+]
